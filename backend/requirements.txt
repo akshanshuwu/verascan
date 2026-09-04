@@ -1,8 +1,8 @@
 fastapi
 uvicorn[standard]
-mediapipe
 python-multipart
 Pillow
 opencv-contrib-python
 google-search-results
 python-dotenv
+requests

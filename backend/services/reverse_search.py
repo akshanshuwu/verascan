@@ -1,20 +1,80 @@
 import base64
 import os
-import tempfile
+import requests
 from serpapi import GoogleSearch
+
+from services.face_recognition import (
+    embed_face,
+    verify_candidate,
+    get_threshold,
+)
+from services.hasher import fingerprint_evidence
+
+# Candidate image download policy (spec section 6).
+CANDIDATE_TIMEOUT_S = 8
+CANDIDATE_MAX_BYTES = 5 * 1024 * 1024
+MAX_CANDIDATES = 8
+IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
+
+SOCIAL_DOMAINS = [
+    "instagram.com", "twitter.com", "x.com", "linkedin.com",
+    "facebook.com", "tiktok.com", "youtube.com", "reddit.com",
+    "pinterest.com", "tumblr.com",
+]
+
+
+def _upload_to_catbox(image_bytes: bytes) -> str:
+    """Upload image bytes to Catbox.moe, return public URL. Raises RuntimeError on failure."""
+    try:
+        files = {"fileToUpload": ("face.jpg", image_bytes, "image/jpeg")}
+        data = {"reqtype": "fileupload"}
+        res = requests.post("https://catbox.moe/user/api.php", files=files, data=data, timeout=30)
+        url = res.text.strip()
+        if res.status_code == 200 and url.startswith("https://"):
+            return url
+        raise RuntimeError(f"Catbox upload failed: {res.status_code} {url[:200]}")
+    except requests.RequestException as e:
+        raise RuntimeError(f"Image hosting upload failed: {e}")
+
+
+def _upload_to_tmpfiles(image_bytes: bytes) -> str:
+    """Fallback: upload to tmpfiles.org, return direct download URL."""
+    try:
+        files = {"file": ("face.jpg", image_bytes, "image/jpeg")}
+        res = requests.post("https://tmpfiles.org/api/v1/upload", files=files, timeout=30)
+        payload = res.json()
+        url = payload.get("data", {}).get("url", "")
+        if url:
+            # Convert https://tmpfiles.org/123/abc.jpg -> https://tmpfiles.org/dl/123/abc.jpg
+            return url.replace("tmpfiles.org/", "tmpfiles.org/dl/")
+        raise RuntimeError(f"tmpfiles upload failed: {payload}")
+    except requests.RequestException as e:
+        raise RuntimeError(f"Image hosting upload failed: {e}")
+
+
+def _publish_image(image_bytes: bytes) -> str:
+    """Publish face crop to a public URL SerpAPI can fetch. Tries Catbox, falls back to tmpfiles."""
+    try:
+        return _upload_to_catbox(image_bytes)
+    except RuntimeError:
+        return _upload_to_tmpfiles(image_bytes)
 
 
 def search_face(image_base64: str) -> dict:
     """
     Perform a reverse image search using SerpAPI's Google Lens endpoint.
 
-    Takes a base64-encoded face image, uploads it to Google Lens via SerpAPI,
-    and returns matching results prioritized by social media domains.
+    Takes a base64-encoded face image, discovers candidates with Google Lens,
+    then independently verifies each candidate with SFace embeddings.
 
     Returns a dict with:
-      - results: list of matched posts
-      - total_results: number of results found
-    
+      - results: ranked candidates, each with faces_detected, similarity,
+        match, candidate_url, image_url, usable, evidence_fingerprint
+      - total_results: number of ranked candidates
+      - threshold: the FACE_MATCH_THRESHOLD in effect
+      - best_match: top passing candidate or None
+      - evidence_fingerprint: SHA-256(url + image bytes) of best_match or None
+
     Raises RuntimeError on API failures.
     """
     api_key = os.getenv("SERPAPI_KEY")
@@ -27,66 +87,168 @@ def search_face(image_base64: str) -> dict:
 
     image_bytes = base64.b64decode(image_base64)
 
-    # Save to a temp file for SerpAPI upload
-    tmp_path = None
+    # Google Lens via SerpAPI requires a PUBLIC image URL — upload the crop first.
+    # Temp files are never sent directly; only the public URL is queried.
+    public_url = _publish_image(image_bytes)
+
+    params = {
+        "engine": "google_lens",
+        "url": public_url,
+        "api_key": api_key,
+    }
+
+    search = GoogleSearch(params)
+    raw_results = search.get_dict()
+
+    if "error" in raw_results:
+        err = raw_results["error"]
+        if "rate" in err.lower() or "limit" in err.lower():
+            raise RuntimeError("Search temporarily unavailable (rate limit). Try again in a few minutes.")
+        if "invalid" in err.lower() or "api_key" in err.lower():
+            raise RuntimeError("Search API key invalid.")
+        raise RuntimeError(f"Search failed: {err}")
+
+    threshold = get_threshold()
+
+    # Query embedding once — the reference every candidate is compared against.
     try:
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-            tmp.write(image_bytes)
-            tmp_path = tmp.name
+        query_embedding = embed_face(image_bytes)
+    except ValueError as e:
+        raise RuntimeError(f"Could not encode a face from the query image: {e}")
 
-        params = {
-            "engine": "google_lens",
-            "url": tmp_path,
-            "api_key": api_key,
-        }
+    # Parse BOTH exact matches (same photo elsewhere) and visual matches.
+    # Google Lens discovery only answers "what might correspond to this image";
+    # VeraScan's embedding layer independently decides "same face or not".
+    seen_urls = set()
+    pooled = []
 
-        # SerpAPI Google Lens requires a URL, so we use the upload approach
-        # For local files, we pass the file path and let SerpAPI handle it
-        search = GoogleSearch(params)
-        raw_results = search.get_dict()
+    for match in raw_results.get("exact_matches", []) or []:
+        link = match.get("link", "")
+        if not link or link in seen_urls:
+            continue
+        seen_urls.add(link)
+        pooled.append((_to_candidate(match, exact=True), True))
 
-        # Parse visual matches
-        visual_matches = raw_results.get("visual_matches", [])
+    visual = raw_results.get("visual_matches", []) or []
+    social_first = sorted(
+        visual[:20],
+        key=lambda m: (not _is_social(m.get("link", ""))),
+    )
+    for match in social_first:
+        link = match.get("link", "")
+        if not link or link in seen_urls:
+            continue
+        seen_urls.add(link)
+        pooled.append((_to_candidate(match, exact=False), False))
 
-        # Social media domains to prioritize
-        social_domains = [
-            "instagram.com", "twitter.com", "x.com", "linkedin.com",
-            "facebook.com", "tiktok.com", "youtube.com", "reddit.com",
-            "pinterest.com", "tumblr.com",
-        ]
+    # Verify each candidate independently (bounded pool, failures never fatal).
+    verified = []
+    for cand, _ in pooled[:MAX_CANDIDATES]:
+        verified.append(_verify_one(cand, query_embedding, threshold))
 
-        results = []
-        for match in visual_matches[:20]:  # Check top 20
-            link = match.get("link", "")
-            source_domain = match.get("source", "")
-            title = match.get("title", "")
-            thumbnail = match.get("thumbnail", "")
-            snippet = match.get("snippet", "")
+    # Rank: verified matches first by similarity desc, then the rest
+    # (scored above unscored, nulls last). Original Lens order breaks ties.
+    def rank_key(c):
+        sim = c["similarity"]
+        return (
+            0 if c["match"] else 1,
+            -(sim if sim is not None else -1.0),
+        )
 
-            results.append({
-                "title": title,
-                "url": link,
-                "thumbnail": thumbnail,
-                "source": source_domain,
-                "snippet": snippet,
-                "is_social": any(d in link.lower() for d in social_domains),
-            })
+    ranked = sorted(verified, key=rank_key)
+    matches = [c for c in ranked if c["match"]]
+    best = matches[0] if matches else None
 
-        # Sort: social media results first, then by order
-        results.sort(key=lambda r: (not r["is_social"],))
+    return {
+        "results": ranked,
+        "total_results": len(ranked),
+        "threshold": threshold,
+        "best_match": best,
+        "evidence_fingerprint": best["evidence_fingerprint"] if best else None,
+    }
 
-        # Return top 5
-        final_results = results[:5]
 
-        # Remove the is_social flag from output
-        for r in final_results:
-            r.pop("is_social", None)
+def _is_social(link: str) -> bool:
+    return any(d in (link or "").lower() for d in SOCIAL_DOMAINS)
 
-        return {
-            "results": final_results,
-            "total_results": len(final_results),
-        }
 
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+def _to_candidate(match: dict, exact: bool) -> dict:
+    link = match.get("link", "")
+    return {
+        "title": match.get("title", ""),
+        "url": link,
+        "thumbnail": match.get("thumbnail", ""),
+        "source": match.get("source", ""),
+        "snippet": match.get("snippet", ""),
+        "exact": exact,
+    }
+
+
+def _best_image_url(cand: dict) -> str | None:
+    """Prefer a direct image URL; fall back to the Lens thumbnail."""
+    link = (cand.get("url") or "").split("#", 1)[0]
+    if link.lower().split("?")[0].endswith(IMAGE_EXTENSIONS):
+        return link
+    return cand.get("thumbnail") or None
+
+
+def _download_image(url: str) -> bytes | None:
+    """Download a candidate image within policy limits. None on any failure."""
+    try:
+        res = requests.get(
+            url,
+            timeout=CANDIDATE_TIMEOUT_S,
+            stream=True,
+            headers={"User-Agent": "VeraScan/1.0"},
+        )
+        if res.status_code != 200:
+            return None
+        ctype = (res.headers.get("Content-Type") or "").lower()
+        if "image" not in ctype:
+            return None
+        chunks = []
+        total = 0
+        for chunk in res.iter_content(64 * 1024):
+            total += len(chunk)
+            if total > CANDIDATE_MAX_BYTES:
+                return None
+            chunks.append(chunk)
+        data = b"".join(chunks)
+        return data or None
+    except requests.RequestException:
+        return None
+
+
+def _verify_one(cand: dict, query_embedding, threshold: float) -> dict:
+    """Independently verify one candidate. Never raises."""
+    base = {
+        **cand,
+        "candidate_url": cand["url"],
+        "image_url": None,
+        "faces_detected": 0,
+        "similarity": None,
+        "match": False,
+        "usable": False,
+        "evidence_fingerprint": None,
+    }
+    image_url = _best_image_url(cand)
+    if not image_url:
+        return base
+    image_bytes = _download_image(image_url)
+    if not image_bytes:
+        return base
+    result = verify_candidate(query_embedding, image_bytes)
+    faces = result["faces_detected"]
+    sim = result["best_similarity"]
+    matched = sim is not None and sim >= threshold
+    return {
+        **base,
+        "image_url": image_url,
+        "faces_detected": faces,
+        "similarity": sim,
+        "match": matched,
+        "usable": faces > 0 and sim is not None,
+        "evidence_fingerprint": (
+            fingerprint_evidence(image_url, image_bytes) if matched else None
+        ),
+    }

@@ -38,6 +38,9 @@ tmp/
 temp/
 *.tmp
 
+# Face recognition models (lazy-downloaded, see backend/services/face_recognition.py)
+backend/models/*.onnx
+
 # Logs
 *.log
 npm-debug.log*

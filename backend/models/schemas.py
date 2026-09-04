@@ -28,6 +28,14 @@ class SearchResult(BaseModel):
     thumbnail: Optional[str] = None
     source: str
     snippet: Optional[str] = None
+    # Independent face-verification fields (additive; null when unverifiable).
+    candidate_url: Optional[str] = None
+    image_url: Optional[str] = None
+    faces_detected: int = 0
+    similarity: Optional[float] = None
+    match: bool = False
+    usable: bool = False
+    evidence_fingerprint: Optional[str] = None
 
 
 class SearchResponse(BaseModel):
@@ -36,18 +44,26 @@ class SearchResponse(BaseModel):
     results: list[SearchResult] = []
     total_results: int = 0
     search_engine: str = "google_lens"
+    threshold: Optional[float] = None
+    best_match: Optional[SearchResult] = None
+    evidence_fingerprint: Optional[str] = None
     error: Optional[str] = None
 
 
 class HashRequest(BaseModel):
-    title: str
-    url: str
+    # Legacy metadata scheme (kept working): SHA-256(title|url|snippet|timestamp).
+    title: Optional[str] = None
+    url: Optional[str] = None
     snippet: str = ""
-    timestamp: str
+    timestamp: Optional[str] = None
+    # Evidence scheme (preferred): SHA-256(matched_url + raw image bytes).
+    matched_url: Optional[str] = None
+    image_base64: Optional[str] = None
 
 
 class HashResponse(BaseModel):
     success: bool
     hash: Optional[str] = None
     algorithm: str = "sha256"
+    scheme: Optional[str] = None
     error: Optional[str] = None

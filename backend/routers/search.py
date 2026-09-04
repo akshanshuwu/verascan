@@ -25,6 +25,9 @@ async def search_endpoint(request: SearchRequest):
             query_image=request.image_base64[:100] + "...",  # Truncated for response
             results=result["results"],
             total_results=result["total_results"],
+            threshold=result.get("threshold"),
+            best_match=result.get("best_match"),
+            evidence_fingerprint=result.get("evidence_fingerprint"),
         )
     except RuntimeError as e:
         return SearchResponse(
