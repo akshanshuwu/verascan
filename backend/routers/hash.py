@@ -9,8 +9,10 @@ router = APIRouter()
 @router.post("/hash", response_model=HashResponse)
 async def hash_endpoint(request: HashRequest):
     try:
-        # Preferred: evidence fingerprint over the actual matched bytes.
-        if request.matched_url and request.image_base64:
+        # Preferred: evidence fingerprint over the actual matched bytes,
+        # bound to the SOURCE PAGE URL (what the chain stores as sourceUrl).
+        source_page_url = request.source_url or request.matched_url
+        if source_page_url and request.image_base64:
             raw_b64 = request.image_base64
             if "," in raw_b64:
                 raw_b64 = raw_b64.split(",", 1)[1]
@@ -19,8 +21,8 @@ async def hash_endpoint(request: HashRequest):
                 return HashResponse(success=False, error="image_base64 decoded to empty bytes.")
             return HashResponse(
                 success=True,
-                hash=fingerprint_evidence(request.matched_url, image_bytes),
-                scheme="matched_url + image_bytes",
+                hash=fingerprint_evidence(source_page_url, image_bytes),
+                scheme="source_url + image_bytes",
             )
         # Legacy: metadata-only fingerprint (backward compatible).
         if request.title is not None and request.url is not None and request.timestamp is not None:
@@ -37,7 +39,7 @@ async def hash_endpoint(request: HashRequest):
             )
         return HashResponse(
             success=False,
-            error="Provide either {matched_url, image_base64} or {title, url, timestamp}.",
+            error="Provide either {source_url, image_base64} (matched_url accepted as alias) or {title, url, timestamp}.",
         )
     except Exception as e:
         return HashResponse(

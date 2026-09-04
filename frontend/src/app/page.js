@@ -395,7 +395,7 @@ export default function Home() {
           </div>
         </div>
         <ul className="spec-list" aria-label="Verification steps">
-          <li><span className="k">1 · Hash</span><span className="v">sha256(matched_url + image_bytes)</span></li>
+          <li><span className="k">1 · Hash</span><span className="v">sha256(source page url + image bytes)</span></li>
           <li><span className="k">2 · Store</span><span className="v">storeRecord(id, hash, url)</span></li>
           <li><span className="k">3 · Re-verify</span><span className="v">getRecord(id) == local hash</span></li>
           <li><span className="k">Contract</span><span className="v">{process.env.NEXT_PUBLIC_CONTRACT_ADDRESS}</span></li>

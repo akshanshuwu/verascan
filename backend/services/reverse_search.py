@@ -68,12 +68,13 @@ def search_face(image_base64: str) -> dict:
     then independently verifies each candidate with SFace embeddings.
 
     Returns a dict with:
-      - results: ranked candidates, each with faces_detected, similarity,
-        match, candidate_url, image_url, usable, evidence_fingerprint
+      - results: ranked candidates, each with source_url (page), image_url
+        (downloaded), image_source (direct/thumbnail_fallback), faces_detected,
+        similarity, match, candidate_url, usable, evidence_fingerprint
       - total_results: number of ranked candidates
       - threshold: the FACE_MATCH_THRESHOLD in effect
       - best_match: top passing candidate or None
-      - evidence_fingerprint: SHA-256(url + image bytes) of best_match or None
+      - evidence_fingerprint: SHA-256(source page url + image bytes) of best_match or None
 
     Raises RuntimeError on API failures.
     """
@@ -177,19 +178,76 @@ def _to_candidate(match: dict, exact: bool) -> dict:
     return {
         "title": match.get("title", ""),
         "url": link,
+        "source_url": link,
         "thumbnail": match.get("thumbnail", ""),
         "source": match.get("source", ""),
         "snippet": match.get("snippet", ""),
         "exact": exact,
+        # Extra image URL fields SerpAPI may provide per match, kept verbatim
+        # so the selection below can prefer real source images over thumbnails.
+        "extra_image_urls": _extra_image_urls(match),
     }
 
 
-def _best_image_url(cand: dict) -> str | None:
-    """Prefer a direct image URL; fall back to the Lens thumbnail."""
+# SerpAPI Lens items always carry `thumbnail`; some also carry a higher
+# quality / original image under varying keys. Anything http(s)-valued under
+# these keys is treated as a candidate source image (thumbnail excluded —
+# it is always the final fallback).
+EXTRA_IMAGE_KEYS = (
+    "original",
+    "original_image",
+    "image",
+    "source_image",
+    "full_image",
+    "large_image",
+    "high_resolution",
+    "src",
+)
+
+
+def _extra_image_urls(match: dict) -> list:
+    found = []
+    thumb = match.get("thumbnail", "")
+    for key in EXTRA_IMAGE_KEYS:
+        val = match.get(key, "")
+        if (
+            isinstance(val, str)
+            and val.startswith(("http://", "https://"))
+            and val != thumb
+            and val not in found
+        ):
+            found.append(val)
+    return found
+
+
+def _image_url_chain(cand: dict) -> list:
+    """Ordered (url, source_label) candidates: direct → extra → thumbnail."""
+    chain = []
     link = (cand.get("url") or "").split("#", 1)[0]
     if link.lower().split("?")[0].endswith(IMAGE_EXTENSIONS):
-        return link
-    return cand.get("thumbnail") or None
+        chain.append((link, "direct"))
+    for extra in cand.get("extra_image_urls") or []:
+        if extra not in [u for u, _ in chain]:
+            chain.append((extra, "direct"))
+    thumb = cand.get("thumbnail") or ""
+    if thumb and thumb not in [u for u, _ in chain]:
+        chain.append((thumb, "thumbnail_fallback"))
+    return chain
+
+
+def _best_image_url(cand: dict) -> str | None:
+    """First URL of the priority chain (kept for backward compat / tests)."""
+    chain = _image_url_chain(cand)
+    return chain[0][0] if chain else None
+
+
+def _download_first(chain: list) -> tuple:
+    """Try each chained URL in order. Returns (url, bytes, source) or (None, None, None)."""
+    for url, source in chain:
+        data = _download_image(url)
+        if data:
+            return url, data, source
+    return None, None, None
 
 
 def _download_image(url: str) -> bytes | None:
@@ -222,21 +280,24 @@ def _download_image(url: str) -> bytes | None:
 def _verify_one(cand: dict, query_embedding, threshold: float) -> dict:
     """Independently verify one candidate. Never raises."""
     base = {
-        **cand,
+        **{k: v for k, v in cand.items() if k != "extra_image_urls"},
         "candidate_url": cand["url"],
+        "source_url": cand["url"],
         "image_url": None,
+        "image_source": None,
         "faces_detected": 0,
         "similarity": None,
         "match": False,
         "usable": False,
         "evidence_fingerprint": None,
     }
-    image_url = _best_image_url(cand)
-    if not image_url:
-        return base
-    image_bytes = _download_image(image_url)
+    image_url, image_bytes, image_source = _download_first(_image_url_chain(cand))
     if not image_bytes:
         return base
+    # The EXACT downloaded bytes below feed both face verification and the
+    # evidence fingerprint. The fingerprint binds the SOURCE PAGE URL
+    # (what the chain stores as sourceUrl) to those bytes — never the
+    # image/thumbnail URL, never metadata.
     result = verify_candidate(query_embedding, image_bytes)
     faces = result["faces_detected"]
     sim = result["best_similarity"]
@@ -244,11 +305,12 @@ def _verify_one(cand: dict, query_embedding, threshold: float) -> dict:
     return {
         **base,
         "image_url": image_url,
+        "image_source": image_source,
         "faces_detected": faces,
         "similarity": sim,
         "match": matched,
         "usable": faces > 0 and sim is not None,
         "evidence_fingerprint": (
-            fingerprint_evidence(image_url, image_bytes) if matched else None
+            fingerprint_evidence(cand["url"], image_bytes) if matched else None
         ),
     }

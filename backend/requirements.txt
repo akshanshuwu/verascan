@@ -6,3 +6,6 @@ opencv-contrib-python
 google-search-results
 python-dotenv
 requests
+# Test-only (pytest suite + FastAPI TestClient)
+pytest
+httpx

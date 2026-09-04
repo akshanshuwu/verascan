@@ -15,7 +15,7 @@ export default function PrivacyPage() {
       n: '02',
       h: 'What goes on-chain',
       body: (
-        <p>Only a SHA-256 fingerprint over the verified candidate image (matched URL + raw image bytes), the source URL, and a timestamp are stored on Ethereum Sepolia. No face image, no embedding, no name, and no personal identifier is written to the blockchain. On-chain records are public and permanent. A match establishes biometric similarity only — never account ownership or legal identity.</p>
+        <p>Only a SHA-256 fingerprint over the verified candidate image (canonical source page URL + raw image bytes), the source URL, and a timestamp are stored on Ethereum Sepolia. No face image, no embedding, no name, and no personal identifier is written to the blockchain. On-chain records are public and permanent. A match establishes biometric similarity only — never account ownership or legal identity.</p>
       ),
     },
     {

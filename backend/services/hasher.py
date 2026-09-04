@@ -1,16 +1,38 @@
 import hashlib
 
 
-def fingerprint_evidence(matched_url: str, image_bytes: bytes) -> str:
+def canonical_source_url(source_page_url: str) -> str:
     """
-    Evidence fingerprint: SHA-256 over the canonical matched image URL
-    (UTF-8, with any #fragment stripped) followed by the exact raw bytes
-    of the downloaded candidate image used for face verification.
+    Deterministic canonicalization of the source page URL.
 
-    Deterministic: same URL + same bytes always yield the same fingerprint;
-    changing a single image byte or the URL changes it.
+    Rules (exactly these, nothing more):
+      - strip any URL fragment ("#..." and everything after it)
+      - strip surrounding whitespace
+      - query parameters, scheme/host casing, and trailing slashes are
+        preserved byte-for-byte (no arbitrary rewriting)
+
+    Returns the canonical URL string (still a str; callers UTF-8 encode it).
     """
-    canonical = matched_url.split("#", 1)[0]
+    return source_page_url.strip().split("#", 1)[0]
+
+
+def fingerprint_evidence(source_page_url: str, image_bytes: bytes) -> str:
+    """
+    Canonical evidence fingerprint.
+
+        fingerprint = SHA-256(UTF-8(canonical source page URL)
+                              + raw downloaded candidate image bytes)
+
+    - source_page_url: the web/social page containing the discovered
+      evidence (NOT the image URL — the chain's `sourceUrl` holds this page).
+    - image_bytes: the exact raw bytes downloaded and used for face
+      verification (never thumbnails-of-something-else, never metadata,
+      never title/snippet/timestamp, never base64 text, never re-encoded).
+
+    Deterministic: same canonical URL + same bytes always yield the same
+    fingerprint; changing one image byte or the URL changes it.
+    """
+    canonical = canonical_source_url(source_page_url)
     return hashlib.sha256(canonical.encode("utf-8") + image_bytes).hexdigest()
 
 

@@ -2,7 +2,9 @@
 
 Face photo in, tamper-proof proof out. Upload a face, discover matching public web content through genuine reverse-image search, independently verify the match with local face recognition, and anchor a SHA-256 fingerprint of the verified evidence on Ethereum Sepolia.
 
-**Pipeline:** Upload → Detect (OpenCV Haar) → Encode (YuNet + SFace 128-D) → Discover (SerpAPI Google Lens: exact + visual matches) → Independently verify (cosine similarity vs threshold) → Fingerprint (SHA-256 of matched URL + image bytes) → Store (`VeraScan.storeRecord` on Sepolia) → Read-only re-verify.
+**Pipeline:** Upload → Detect (OpenCV Haar) → Encode (YuNet + SFace 128-D) → Discover (SerpAPI Google Lens: exact + visual matches) → Independently verify (cosine similarity vs threshold) → Fingerprint (`SHA-256(canonical source page URL + raw downloaded candidate image bytes)`) → Store (`VeraScan.storeRecord` on Sepolia) → Read-only re-verify.
+
+The fingerprint represents the discovered evidence used during verification; it does not prove account ownership or legal identity.
 
 Google Lens DISCOVERS. SFace independently COMPARES. SHA-256 FINGERPRINTS. Ethereum Sepolia ANCHORS. Read-only verification PROVES whether the evidence fingerprint still matches.
 

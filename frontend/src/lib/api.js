@@ -21,11 +21,11 @@ export async function searchFace(imageBase64) {
   return res.json();
 }
 
-export async function hashData({ title, url, snippet, timestamp, matched_url, image_base64 }) {
+export async function hashData({ title, url, snippet, timestamp, matched_url, source_url, image_base64 }) {
   const res = await fetch(`${API_BASE}/api/hash`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, url, snippet: snippet || '', timestamp, matched_url, image_base64 }),
+    body: JSON.stringify({ title, url, snippet: snippet || '', timestamp, matched_url, source_url, image_base64 }),
   });
   if (!res.ok) throw new Error(`Hash failed (${res.status})`);
   return res.json();

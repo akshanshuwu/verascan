@@ -5,7 +5,6 @@ import { useState } from 'react';
 export default function FacePreview({ originalUrl, face, facesDetected, onConfirm, onReset, busy }) {
   const [nat, setNat] = useState(null); // { w, h }
   const box = face.bounding_box;
-  const conf = Math.round((face.confidence ?? 0) * 100);
 
   // Overlay as percentages of the displayed image (needs natural size).
   const pct =
@@ -63,13 +62,13 @@ export default function FacePreview({ originalUrl, face, facesDetected, onConfir
           <img src={face.image_base64} alt="Cropped face sent to search" />
           <div className="fp-conf">
             <div className="fp-conf-row">
-              <span className="micro-label">Detector confidence</span>
-              <span className="mono">{face.confidence}</span>
+              <span className="micro-label">Detection output</span>
+              <span className="mono">face located</span>
             </div>
-            <div className="conf-bar" role="progressbar" aria-valuenow={conf} aria-valuemin={0} aria-valuemax={100} aria-label="Detection confidence">
-              <span style={{ width: `${conf}%` }} />
+            <div className="conf-bar" role="img" aria-label="Face located indicator">
+              <span style={{ width: '100%' }} />
             </div>
-            <div className="fp-note">Haar cascade score · 20% crop padding · JPEG q90</div>
+            <div className="fp-note">Haar cascade locator (no identity score) · 20% crop padding · JPEG q90</div>
           </div>
         </aside>
       </div>
