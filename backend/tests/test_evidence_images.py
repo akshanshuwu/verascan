@@ -1,6 +1,6 @@
 """
 Evidence image selection tests: the ACTUAL source image must be verified and
-fingerprinted — Lens thumbnails only as a clearly-marked final fallback.
+fingerprinted. Lens thumbnails only as a clearly-marked final fallback.
 """
 import base64
 import os
@@ -149,7 +149,7 @@ def test_fragment_normalization():
     )
 
 
-# 8. raw bytes are hashed — never the base64 text of the image
+# 8. raw bytes are hashed. Never the base64 text of the image
 def test_no_base64_string_hashing():
     import hashlib
 
@@ -192,6 +192,6 @@ def test_search_fingerprint_equals_store_input(monkeypatch):
         assert r.status_code == 200
         assert r.json()["hash"] == search_fp
     except ImportError:
-        # fastapi.testclient (httpx) not installed — compare against the
+        # fastapi.testclient (httpx) not installed. Compare against the
         # canonical function directly instead.
         assert search_fp == fingerprint_evidence(page, img)

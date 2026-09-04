@@ -250,7 +250,7 @@ export default function Home() {
         <div className="card glass stage-upload">
           <div className="card-head">
             <div>
-              <div className="micro-label">01 — Source</div>
+              <div className="micro-label">01 · Source</div>
               <h2>Upload a face photo</h2>
             </div>
             <span className="stage-num" aria-hidden="true">01</span>
@@ -285,7 +285,7 @@ export default function Home() {
         >
           <div className="card-head">
             <div>
-              <div className="micro-label">03 — Search · Google Lens live</div>
+              <div className="micro-label">03 · Search · Google Lens live</div>
               <h2>Matching public content ({results.length})</h2>
             </div>
             <span className="stage-num" aria-hidden="true">03</span>
@@ -297,7 +297,7 @@ export default function Home() {
               <strong>{threshold.toFixed(2)}</strong>
               <span className="muted">Only SAME-FACE MATCH rows can anchor.</span>
               {bestMatch
-                ? <span className="badge ok">Best biometric similarity {bestMatch.similarity != null ? bestMatch.similarity.toFixed(4) : '—'}</span>
+                ? <span className="badge ok">Best biometric similarity {bestMatch.similarity != null ? bestMatch.similarity.toFixed(4) : '-'}</span>
                 : <span className="badge pending">No verified match yet</span>}
             </div>
           )}
@@ -329,12 +329,12 @@ export default function Home() {
             <li><span className="k">Lens search</span><span className="v">✓ genuine external discovery</span></li>
             <li><span className="k">Candidates found</span><span className="v">{results.length}</span></li>
             <li><span className="k">Candidate verification</span><span className="v">✓ each face compared</span></li>
-            <li><span className="k">Best biometric similarity</span><span className="v">{bestMatch && bestMatch.similarity != null ? bestMatch.similarity.toFixed(4) : '—'}</span></li>
-            <li><span className="k">Match threshold</span><span className="v">{threshold != null ? threshold.toFixed(2) : '—'}</span></li>
-            <li><span className="k">Match confirmed</span><span className="v">{bestMatch ? '✓ SAME-FACE MATCH' : '— below threshold, anchoring disabled'}</span></li>
-            <li><span className="k">SHA-256 evidence fingerprint</span><span className="v">{evidenceFingerprint ? `${evidenceFingerprint.slice(0, 20)}…` : '—'}</span></li>
+            <li><span className="k">Best biometric similarity</span><span className="v">{bestMatch && bestMatch.similarity != null ? bestMatch.similarity.toFixed(4) : '-'}</span></li>
+            <li><span className="k">Match threshold</span><span className="v">{threshold != null ? threshold.toFixed(2) : '-'}</span></li>
+            <li><span className="k">Match confirmed</span><span className="v">{bestMatch ? '✓ SAME-FACE MATCH' : '- below threshold, anchoring disabled'}</span></li>
+            <li><span className="k">SHA-256 evidence fingerprint</span><span className="v">{evidenceFingerprint ? `${evidenceFingerprint.slice(0, 20)}…` : '-'}</span></li>
           </ul>
-          <p className="muted" style={{ marginTop: 10 }}>Biometric similarity only — not identity, not account ownership. The blockchain later verifies evidence integrity.</p>
+          <p className="muted" style={{ marginTop: 10 }}>Biometric similarity only. Not identity, not account ownership. The blockchain later verifies evidence integrity.</p>
         </div>
       )}
 

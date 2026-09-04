@@ -98,9 +98,9 @@ export default function FaceUploader({ onFile, disabled }) {
           tabIndex={-1}
           aria-hidden="true"
         />
-        <div className="micro-label">01 — Source image</div>
+        <div className="micro-label">01 · Source image</div>
         <div className="dz-title">{drag ? 'Release to load photo' : 'Drop a face photo, or click to browse'}</div>
-        <div className="dz-sub">JPG · PNG · WebP — max 10MB, min 100×100px. Front-facing, well lit.</div>
+        <div className="dz-sub">JPG · PNG · WebP. Max 10MB, min 100×100px. Front-facing, well lit.</div>
         <div className="dz-formats">
           <span>JPG</span><span>PNG</span><span>WEBP</span>
         </div>

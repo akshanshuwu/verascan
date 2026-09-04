@@ -30,11 +30,11 @@ export default function BlockchainProof({ proof, verifyState, onReverify }) {
   const checking = verifyState === 'checking';
   const stamp =
     verifyState === 'match' ? (
-      <span className="badge ok">Match — on-chain hash equals local hash</span>
+      <span className="badge ok">Match: on-chain hash equals local hash</span>
     ) : verifyState === 'mismatch' ? (
-      <span className="badge bad">Mismatch — data changed since storage</span>
+      <span className="badge bad">Mismatch: data changed since storage</span>
     ) : (
-      <span className="badge pending">Stored — not yet re-verified this session</span>
+      <span className="badge pending">Stored: not yet re-verified this session</span>
     );
 
   const fields = [
@@ -47,13 +47,13 @@ export default function BlockchainProof({ proof, verifyState, onReverify }) {
     <section className="card proof" aria-label="Blockchain proof">
       <div className="card-head">
         <div>
-          <div className="micro-label">04 — Proof · Sepolia</div>
+          <div className="micro-label">04 · Proof · Sepolia</div>
           <h2>On-chain record</h2>
         </div>
         {stamp}
       </div>
       <p className="muted">
-        Fingerprint stored via <code className="mono">storeRecord(id, hash, url)</code>. The face image never leaves your machine history — only the hash is permanent.
+        Fingerprint stored via <code className="mono">storeRecord(id, hash, url)</code>. The face image never leaves your machine history. Only the hash is permanent.
       </p>
 
       <dl className="proof-list">
@@ -73,7 +73,7 @@ export default function BlockchainProof({ proof, verifyState, onReverify }) {
         <div className="proof-meta-row">
           <div>
             <div className="micro-label">Block</div>
-            <div className="mono">{proof.blockNumber || '—'}</div>
+            <div className="mono">{proof.blockNumber || '-'}</div>
           </div>
           <div className="proof-source">
             <div className="micro-label">Source</div>

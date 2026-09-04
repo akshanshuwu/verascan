@@ -147,7 +147,7 @@ export default function ResultsPage() {
           )}
         </div>
         {archive.length === 0 && (
-          <p className="muted">Nothing archived yet. Each search and each on-chain proof lands here — metadata only, no face images.</p>
+          <p className="muted">Nothing archived yet. Each search and each on-chain proof lands here. Metadata only, no face images.</p>
         )}
         {archive.map((e) => (
           <article className="hist-entry" key={e.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 14, marginTop: 14 }}>

@@ -2,8 +2,8 @@
 VeraScan independent face-recognition layer: YuNet + SFace (OpenCV contrib).
 
 Role: encode faces into 128-D L2-normalized embeddings and compare them with
-cosine similarity (higher = more similar). Used ONLY for verification —
-candidate discovery stays with SerpAPI Google Lens.
+cosine similarity (higher means more similar). Used ONLY for verification.
+Candidate discovery stays with SerpAPI Google Lens.
 
 Models (lazy-downloaded once, cached under backend/models/, git-ignored):
   - YuNet  face_detection_yunet_2023mar.onnx      (~0.22 MB)
@@ -11,7 +11,7 @@ Models (lazy-downloaded once, cached under backend/models/, git-ignored):
 Source: https://github.com/opencv/opencv_zoo (Apache-2.0)
 Pinned SHA-256 checksums live in MODEL_SHA256 below.
 
-No torch / TF / dlib / DeepFace / MediaPipe — Python 3.14 + Apple Silicon safe.
+No torch / TF / dlib / DeepFace / MediaPipe. Python 3.14 + Apple Silicon safe.
 Embeddings never leave the server and are never sent to the frontend.
 """
 
@@ -143,7 +143,7 @@ def verify_candidate(query_embedding: np.ndarray, candidate_bytes: bytes) -> dic
 
     Returns {faces_detected, similarities, best_similarity} where
     best_similarity is None when no face is found. Never raises for
-    undecodable images — those yield faces_detected=0.
+    undecodable images: those yield faces_detected=0.
     """
     try:
         detector, recognizer = get_models()

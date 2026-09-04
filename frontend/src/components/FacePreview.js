@@ -21,7 +21,7 @@ export default function FacePreview({ originalUrl, face, facesDetected, onConfir
     <section className="card fp" aria-label="Face detection result">
       <div className="card-head">
         <div>
-          <div className="micro-label">02 — Detection</div>
+          <div className="micro-label">02 · Detection</div>
           <h2>Face isolated</h2>
         </div>
         <span className="step-index">

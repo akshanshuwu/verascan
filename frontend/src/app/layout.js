@@ -9,10 +9,10 @@ const serif = Source_Serif_4({ subsets: ['latin'], variable: '--font-news', disp
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap', weight: ['400', '500', '600'] });
 
 export const metadata = {
-  title: 'VeraScan — face to blockchain proof',
+  title: 'VeraScan: face to blockchain proof',
   description: 'Upload a face, find matching public web content, and store a tamper-proof SHA-256 fingerprint on Ethereum Sepolia.',
   openGraph: {
-    title: 'VeraScan — face to blockchain proof',
+    title: 'VeraScan: face to blockchain proof',
     description: 'Live reverse image search with on-chain verification on Sepolia.',
     type: 'website',
   },

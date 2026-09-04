@@ -1,4 +1,4 @@
-# VeraScan — Face to Blockchain Verification
+# VeraScan: Face to Blockchain Verification
 
 Face photo in, tamper-proof proof out. Upload a face, discover matching public web content through genuine reverse-image search, independently verify the match with local face recognition, and anchor a SHA-256 fingerprint of the verified evidence on Ethereum Sepolia.
 
@@ -22,14 +22,14 @@ Only the evidence fingerprint (SHA-256 of matched URL + raw candidate image byte
 
 ## Face recognition
 
-- **Detection (primary):** OpenCV Haar Cascade (`/api/detect-face`) — unchanged.
-- **Recognition (verification):** YuNet (`face_detection_yunet_2023mar.onnx`, ~0.22 MB) for alignment-quality boxes + landmarks, SFace (`face_recognition_sface_2021dec.onnx`, ~36.9 MB) for 128-D L2-normalized embeddings, cosine similarity (higher = more similar). Zero new pip dependencies — both run on the already-installed `opencv-contrib-python` (Python 3.14 + Apple Silicon safe).
+- **Detection (primary):** OpenCV Haar Cascade (`/api/detect-face`). Unchanged.
+- **Recognition (verification):** YuNet (`face_detection_yunet_2023mar.onnx`, ~0.22 MB) for alignment-quality boxes + landmarks, SFace (`face_recognition_sface_2021dec.onnx`, ~36.9 MB) for 128-D L2-normalized embeddings, cosine similarity (higher means more similar). Zero new pip dependencies. Both run on the already-installed `opencv-contrib-python` (Python 3.14 + Apple Silicon safe).
 - **Threshold:** `FACE_MATCH_THRESHOLD` env var (default `0.50`). Calibrated locally: same-person pairs 0.92–1.00, different-person ~0.16. Candidates score `>= threshold` become `match: true`; everything else stays visible with scores but can never anchor on-chain.
 - **Models:** lazy-downloaded once from the OpenCV Zoo (Apache-2.0) into git-ignored `backend/models/`, SHA-256 pinned in `services/face_recognition.py`. Never downloaded per-request.
 
 ## Run locally
 
-**1. Env** — copy and fill:
+**1. Env:** copy and fill:
 ```bash
 cp .env.example .env
 # backend/.env: SERPAPI_KEY, FACE_MATCH_THRESHOLD (default 0.50)
@@ -62,14 +62,14 @@ Routes: `/` pipeline, `/results` session results, `/verify` proof + manual re-ve
 ## Blockchain
 
 - Network: Ethereum Sepolia testnet, Alchemy RPC
-- Contract: `contracts/contracts/VeraScan.sol` — `storeRecord(bytes32,string,string)`, `verifyRecord`, `getRecord`, `recordCount`
+- Contract: `contracts/contracts/VeraScan.sol` with `storeRecord(bytes32,string,string)`, `verifyRecord`, `getRecord`, `recordCount`
 - Deployed: `0x0fb9824673d027Fb2f2fC629706C2e1E24C39408` ([Sepolia Etherscan](https://sepolia.etherscan.io/address/0x0fb9824673d027Fb2f2fC629706C2e1E24C39408))
 - Verify: recompute SHA-256 of matched URL + image bytes, compare with `getRecord(id).dataHash`. Re-verify UI reports `Evidence fingerprint matches on-chain record` or `Tamper detected`.
 
 ## What VeraScan does NOT prove
 
 - Account ownership, legal identity, or that a person controls a social-media account.
-- That a biometric match is infallible — it establishes measured similarity (cosine score vs threshold), nothing more.
+- That a biometric match is infallible. It establishes measured similarity (cosine score vs threshold), nothing more.
 
 ## What VeraScan DOES demonstrate
 

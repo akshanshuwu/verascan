@@ -88,7 +88,7 @@ def search_face(image_base64: str) -> dict:
 
     image_bytes = base64.b64decode(image_base64)
 
-    # Google Lens via SerpAPI requires a PUBLIC image URL — upload the crop first.
+    # Google Lens via SerpAPI requires a PUBLIC image URL: upload the crop first.
     # Temp files are never sent directly; only the public URL is queried.
     public_url = _publish_image(image_bytes)
 
@@ -111,7 +111,7 @@ def search_face(image_base64: str) -> dict:
 
     threshold = get_threshold()
 
-    # Query embedding once — the reference every candidate is compared against.
+    # Query embedding once: the reference every candidate is compared against.
     try:
         query_embedding = embed_face(image_bytes)
     except ValueError as e:
@@ -191,7 +191,7 @@ def _to_candidate(match: dict, exact: bool) -> dict:
 
 # SerpAPI Lens items always carry `thumbnail`; some also carry a higher
 # quality / original image under varying keys. Anything http(s)-valued under
-# these keys is treated as a candidate source image (thumbnail excluded —
+# these keys is treated as a candidate source image (thumbnail excluded:
 # it is always the final fallback).
 EXTRA_IMAGE_KEYS = (
     "original",
@@ -296,7 +296,7 @@ def _verify_one(cand: dict, query_embedding, threshold: float) -> dict:
         return base
     # The EXACT downloaded bytes below feed both face verification and the
     # evidence fingerprint. The fingerprint binds the SOURCE PAGE URL
-    # (what the chain stores as sourceUrl) to those bytes — never the
+    # (what the chain stores as sourceUrl) to those bytes. Never the
     # image/thumbnail URL, never metadata.
     result = verify_candidate(query_embedding, image_bytes)
     faces = result["faces_detected"]

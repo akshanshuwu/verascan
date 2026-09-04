@@ -1,4 +1,4 @@
-// VeraScan search history — browser-local only (localStorage).
+// VeraScan search history. Browser-local only (localStorage).
 // Metadata only: timestamps, result titles/URLs/sources, hashes, tx refs.
 // Face images and crops are NEVER stored here (privacy: processed in memory only).
 
@@ -22,7 +22,7 @@ function save(entries) {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
   } catch {
-    // Storage full or unavailable — history is best-effort, never blocks the pipeline.
+    // Storage full or unavailable. History is best-effort and never blocks the pipeline.
   }
 }
 

@@ -24,7 +24,7 @@ def fingerprint_evidence(source_page_url: str, image_bytes: bytes) -> str:
                               + raw downloaded candidate image bytes)
 
     - source_page_url: the web/social page containing the discovered
-      evidence (NOT the image URL — the chain's `sourceUrl` holds this page).
+      evidence (NOT the image URL: the chain's `sourceUrl` holds this page).
     - image_bytes: the exact raw bytes downloaded and used for face
       verification (never thumbnails-of-something-else, never metadata,
       never title/snippet/timestamp, never base64 text, never re-encoded).

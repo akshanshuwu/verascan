@@ -7,7 +7,7 @@ import re
 
 REPO = "/Users/akshanshsingh/VeraScan"
 
-# Misleading claims — must not appear in user-facing copy, docs, or API text.
+# Misleading claims. Must not appear in user-facing copy, docs, or API text.
 BANNED = [
     r"% identity",
     r"% confidence",
@@ -25,7 +25,7 @@ BANNED = [
 ]
 
 # User-facing surfaces (excludes historical planning docs prd.md/task docs,
-# which describe — not display — product language).
+# which describe, not display, product language).
 SCAN_PATHS = [
     "frontend/src",
     "backend/services",
@@ -59,7 +59,7 @@ def test_no_banned_terminology():
 
 
 def test_api_returns_raw_numerics():
-    """Similarity/threshold stay numeric — never pre-formatted as percent."""
+    """Similarity/threshold stay numeric. Never pre-formatted as percent."""
     from models.schemas import SearchResponse, SearchResult
 
     r = SearchResult(

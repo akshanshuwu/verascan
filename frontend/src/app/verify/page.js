@@ -93,8 +93,8 @@ export default function VerifyPage() {
           <input id="vhash" className="mono field" placeholder="64 hex chars" value={manualHash} onChange={(e) => setManualHash(e.target.value)} />
           <button className="btn btn-primary" type="submit">Verify</button>
         </form>
-        {verifyState === 'match' && <div style={{ marginTop: 12 }}><span className="badge ok">Match — hashes equal</span></div>}
-        {verifyState === 'mismatch' && <div style={{ marginTop: 12 }}><span className="badge bad">Mismatch — hashes differ</span></div>}
+        {verifyState === 'match' && <div style={{ marginTop: 12 }}><span className="badge ok">Match: hashes equal</span></div>}
+        {verifyState === 'mismatch' && <div style={{ marginTop: 12 }}><span className="badge bad">Mismatch: hashes differ</span></div>}
       </div>
     </div>
   );

@@ -47,10 +47,10 @@ export default function SearchResult({ result, onVerify, verifying, selected, in
         <h3 className="res-title">{result.title || 'Untitled match'}</h3>
         {result.snippet && <p className="res-snip">{result.snippet}</p>}
         <div className={`res-match${result.match ? ' res-match-pass' : ''}`} aria-label="Biometric similarity score">
-          <span className="res-match-score">{sim != null ? sim.toFixed(2) : '—'}</span>
+          <span className="res-match-score">{sim != null ? sim.toFixed(2) : '-'}</span>
           <span className="res-match-meta">
             <strong>Biometric similarity</strong>
-            <span>threshold {threshold != null ? Number(threshold).toFixed(2) : '—'}{result.faces_detected > 0 ? ` · ${result.faces_detected} face${result.faces_detected === 1 ? '' : 's'} in candidate` : ''}</span>
+            <span>threshold {threshold != null ? Number(threshold).toFixed(2) : '-'}{result.faces_detected > 0 ? ` · ${result.faces_detected} face${result.faces_detected === 1 ? '' : 's'} in candidate` : ''}</span>
           </span>
         </div>
         <div className="res-url-row">
@@ -67,7 +67,7 @@ export default function SearchResult({ result, onVerify, verifying, selected, in
       </div>
 
       <div className="res-side">
-        <button className="btn btn-primary res-cta" onClick={() => onVerify(result)} disabled={verifying || !result.match} title={result.match ? 'Anchor verified match on-chain' : 'Below threshold — anchoring disabled'}>
+        <button className="btn btn-primary res-cta" onClick={() => onVerify(result)} disabled={verifying || !result.match} title={result.match ? 'Anchor verified match on-chain' : 'Below threshold. Anchoring disabled.'}>
           {isBusy ? 'Hashing…' : result.match ? 'Anchor on-chain' : 'Unverified'}
         </button>
         <span className="res-hint">sha-256 evidence → Sepolia</span>
