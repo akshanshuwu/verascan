@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Next.js
+.next/
+out/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Hardhat
+contracts/cache/
+contracts/artifacts/
+contracts/typechain-types/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Temp
+tmp/
+temp/
+*.tmp
+
+# Logs
+*.log
+npm-debug.log*
