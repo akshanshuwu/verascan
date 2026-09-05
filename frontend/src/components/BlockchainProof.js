@@ -44,7 +44,7 @@ export default function BlockchainProof({ proof, verifyState, onReverify }) {
   ];
 
   return (
-    <section className="card proof" aria-label="Blockchain proof">
+    <section className="card proof" id="onchain-proof" aria-label="Blockchain proof">
       <div className="card-head">
         <div>
           <div className="micro-label">04 · Proof · Sepolia</div>

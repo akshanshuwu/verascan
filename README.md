@@ -1,97 +1,264 @@
-# VeraScan: Face to Blockchain Verification
+# VeraScan
 
-Face photo in, tamper-proof proof out. Upload a face, discover matching public web content through genuine reverse-image search, independently verify the match with local face recognition, and anchor a SHA-256 fingerprint of the verified evidence on Ethereum Sepolia.
+### Face Identification & Blockchain Verification
 
-**Pipeline:** Upload → Detect (OpenCV Haar) → Encode (YuNet + SFace 128-D) → Discover (SerpAPI Google Lens: exact + visual matches) → Independently verify (cosine similarity vs threshold) → Fingerprint (`SHA-256(canonical source page URL + raw downloaded candidate image bytes)`) → Store (`VeraScan.storeRecord` on Sepolia) → Read-only re-verify.
+VeraScan is a complete web application that detects and encodes a face, discovers matching public web/social-media content using genuine reverse-image search, independently verifies candidate faces, and anchors the verified evidence on Ethereum Sepolia.
 
-The fingerprint represents the discovered evidence used during verification; it does not prove account ownership or legal identity.
+## Try VeraScan
 
-Google Lens DISCOVERS. SFace independently COMPARES. SHA-256 FINGERPRINTS. Ethereum Sepolia ANCHORS. Read-only verification PROVES whether the evidence fingerprint still matches.
+**No installation is required. The complete project is available as a live website.**
 
-## Architecture
+**[Live Demo](YOUR_LIVE_WEBSITE_URL)**
 
+From the website you can:
+
+- Upload a face image
+- Detect and encode the face
+- Search the public web using Google Lens
+- Discover social-media matches
+- Independently verify candidate faces using SFace
+- View biometric similarity scores
+- Generate a SHA-256 evidence fingerprint
+- Store the fingerprint on Ethereum Sepolia
+- Re-verify the record directly against the blockchain
+- Detect tampering by comparing fingerprints
+
+---
+
+## How It Works
+
+```text
+Upload Face
+     ↓
+Face Detection + Encoding
+     ↓
+Google Lens Reverse Search
+     ↓
+Candidate Discovery
+     ↓
+Independent Face Verification
+     ↓
+SHA-256 Evidence Fingerprint
+     ↓
+Ethereum Sepolia
+     ↓
+Blockchain Re-verification
 ```
-Browser (Next.js 16, React 19, ethers v6)
-  → FastAPI backend (:8000): /api/detect-face, /api/search, /api/hash, /api/health
-  → SerpAPI Google Lens (via public Catbox/tmpfiles upload; exact_matches + visual_matches)
-  → Independent verification (YuNet detection + SFace 128-D embeddings, cosine similarity, FACE_MATCH_THRESHOLD)
-  → Ethereum Sepolia via Alchemy: 0x0fb9824673d027Fb2f2fC629706C2e1E24C39408
+
+**Google Lens is used for discovery only.** VeraScan independently compares the uploaded face with discovered candidate images using **YuNet + SFace 128-D embeddings** and cosine similarity.
+
+### Tech Stack
+
+- **Frontend:** Next.js 16, React 19
+- **Backend:** FastAPI, Python
+- **Face Recognition:** OpenCV Haar Cascade, YuNet, SFace
+- **Reverse Search:** SerpAPI Google Lens
+- **Fingerprinting:** SHA-256
+- **Blockchain:** Ethereum Sepolia
+- **Smart Contract:** Solidity
+
+---
+
+# Run Locally
+
+You can run VeraScan in three ways:
+
+### 1. Live Website — Recommended
+
+Use the live demo above. No setup required.
+
+### 2. Full Local Application
+
+Runs both the Next.js frontend and FastAPI backend.
+
+### 3. Backend Only
+
+The core pipeline can also run without the frontend — via the terminal CLI
+(real end-to-end scan, receipt, re-verification and tamper demo) or through
+the FastAPI API/Swagger interface at:
+
+```text
+http://localhost:8000/docs
 ```
 
-Only the evidence fingerprint (SHA-256 of matched URL + raw candidate image bytes) and the source URL go on-chain. Images never touch the chain and are never stored on the server. Embeddings never leave the backend and are never sent to the frontend.
-
-## Face recognition
-
-- **Detection (primary):** OpenCV Haar Cascade (`/api/detect-face`). Unchanged.
-- **Recognition (verification):** YuNet (`face_detection_yunet_2023mar.onnx`, ~0.22 MB) for alignment-quality boxes + landmarks, SFace (`face_recognition_sface_2021dec.onnx`, ~36.9 MB) for 128-D L2-normalized embeddings, cosine similarity (higher means more similar). Zero new pip dependencies. Both run on the already-installed `opencv-contrib-python` (Python 3.14 + Apple Silicon safe).
-- **Threshold:** `FACE_MATCH_THRESHOLD` env var (default `0.50`). Calibrated locally: same-person pairs 0.92–1.00, different-person ~0.16. Candidates score `>= threshold` become `match: true`; everything else stays visible with scores but can never anchor on-chain.
-- **Models:** lazy-downloaded once from the OpenCV Zoo (Apache-2.0) into git-ignored `backend/models/`, SHA-256 pinned in `services/face_recognition.py`. Never downloaded per-request.
-
-## Run locally
-
-**1. Env:** copy and fill:
 ```bash
-cp .env.example .env
-# backend/.env: SERPAPI_KEY, FACE_MATCH_THRESHOLD (default 0.50)
-# frontend/.env.local: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_CONTRACT_ADDRESS, NEXT_PUBLIC_ALCHEMY_RPC_URL + server ALCHEMY_RPC_URL, CONTRACT_ADDRESS, DEPLOYER_PRIVATE_KEY
+cd backend
+source venv/bin/activate
+python main.py scan --image ../download.jpeg
+python main.py verify --record <record_id>
+python main.py verify --record <record_id> --tamper
 ```
 
-**2. Backend:**
+`scan` detects the face, encodes it (YuNet + SFace), runs the SerpAPI Google
+Lens search, verifies candidates by biometric similarity, fingerprints the
+evidence with SHA-256, anchors it on Sepolia with `storeRecord`, reads the
+record back, and saves a local receipt to
+`backend/receipts/receipt_<timestamp>.json` (no keys stored). `verify`
+compares the receipt evidence against the on-chain fingerprint (`PASS`/`FAIL`);
+`--tamper` flips one evidence byte in memory only and demonstrates the
+mismatch. Each scan spends one SerpAPI search plus one Sepolia transaction; if
+no candidate passes the similarity threshold, nothing is written on-chain.
+
+---
+
+## Local Setup
+
+### Requirements
+
+- Python 3.14
+- Node.js 18+
+- npm
+- Internet connection
+- SerpAPI API key
+- Ethereum Sepolia RPC
+- Sepolia wallet with test ETH for blockchain transactions
+
+### 1. Clone
+
 ```bash
-cd backend && source venv/bin/activate && pip install -r requirements.txt
+git clone https://github.com/akshanshuwu/verascan.git
+cd verascan
+```
+
+### 2. Backend
+
+```bash
+cd backend
+python3.14 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+Create `backend/.env`:
+
+```env
+SERPAPI_KEY=your_serpapi_key
+FACE_MATCH_THRESHOLD=0.50
+ALCHEMY_RPC_URL=your_alchemy_sepolia_rpc
+CONTRACT_ADDRESS=0x0fb9824673d027Fb2f2fC629706C2e1E24C39408
+DEPLOYER_PRIVATE_KEY=your_sepolia_private_key
+```
+
+Start the backend:
+
+```bash
 uvicorn main:app --host 127.0.0.1 --port 8000
-python test_endpoints.py  # health, detect-face, hash
-python -m pytest tests/test_face_matching.py  # 14 embedding/verification/fingerprint tests
-python calibrate_threshold.py  # similarity distribution check
 ```
 
-**3. Contracts:**
+### 3. Frontend
+
+In a new terminal:
+
 ```bash
-cd contracts && npm install
-npx hardhat test                    # 11/11 passing
-npx hardhat run scripts/deploy.js --network sepolia
+cd frontend
+npm install
 ```
 
-**4. Frontend:**
+Create `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_CONTRACT_ADDRESS=0x0fb9824673d027Fb2f2fC629706C2e1E24C39408
+NEXT_PUBLIC_ALCHEMY_RPC_URL=your_alchemy_sepolia_rpc
+```
+
+Start:
+
 ```bash
-cd frontend && npm install && npm run dev  # http://localhost:3000
+npm run dev
 ```
 
-Routes: `/` pipeline, `/results` session results, `/verify` proof + manual re-verify, `/privacy`, `/terms`. Store txs go through `POST /api/store` (server-side wallet, no MetaMask needed).
+Open:
+
+```text
+http://localhost:3000
+```
+
+---
 
 ## Blockchain
 
-- Network: Ethereum Sepolia testnet, Alchemy RPC
-- Contract: `contracts/contracts/VeraScan.sol` with `storeRecord(bytes32,string,string)`, `verifyRecord`, `getRecord`, `recordCount`
-- Deployed: `0x0fb9824673d027Fb2f2fC629706C2e1E24C39408` ([Sepolia Etherscan](https://sepolia.etherscan.io/address/0x0fb9824673d027Fb2f2fC629706C2e1E24C39408))
-- Verify: recompute SHA-256 of matched URL + image bytes, compare with `getRecord(id).dataHash`. Re-verify UI reports `Evidence fingerprint matches on-chain record` or `Tamper detected`.
+VeraScan already has a deployed contract on **Ethereum Sepolia**, so no deployment is required.
 
-## What VeraScan does NOT prove
+```text
+Contract:
+0x0fb9824673d027Fb2f2fC629706C2e1E24C39408
 
-- Account ownership, legal identity, or that a person controls a social-media account.
-- That a biometric match is infallible. It establishes measured similarity (cosine score vs threshold), nothing more.
+Network:
+Ethereum Sepolia
 
-## What VeraScan DOES demonstrate
+Chain ID:
+11155111
+```
 
-1. Genuine web discovery (SerpAPI Google Lens, never hardcoded).
-2. Independent biometric similarity matching (YuNet + SFace, local, real scores).
-3. Cryptographic evidence fingerprinting (SHA-256 of URL + image bytes).
-4. Blockchain anchoring (Sepolia `storeRecord`, live tx `0xc1c27d821a112f9f458429f5c61d122b644c4fb15adf8f452ada9b50db9ac012`, block 11634046).
-5. Tamper-evident re-verification (byte-flip → mismatch detected).
+A private key is only required when submitting a new blockchain transaction. Read-only verification does not require one.
 
-## Known limitations
+---
 
-1. Search accuracy depends on photo quality and public presence. No public face = no results.
-2. SerpAPI free tier: 100 searches/month.
-3. Sepolia is a testnet with no monetary value.
-4. Haar cascades work best on front-facing, well-lit photos.
-5. Open web only. Private accounts never appear.
-6. Candidate thumbnails are small; low-resolution faces score lower and may fall below threshold even when related. Scores are shown precisely so the evidence can be judged.
+## Evidence Verification
 
-## Pre-launch status
+For every verified candidate, VeraScan creates:
 
-- [x] Favicon (`src/app/icon.svg`), no "made with AI" tags
-- [x] Privacy + Terms pages with real content
-- [x] `.env.example` documented, `.env` files gitignored
-- [ ] Screen recording (run: upload → detect → search → verify → re-verify)
-- [ ] Public GitHub push (verify no `.env` committed with `git status`)
+```text
+SHA-256(source URL + exact downloaded image bytes)
+```
+
+The fingerprint is stored on Ethereum Sepolia.
+
+The image and face embeddings are **not stored on-chain**.
+
+During re-verification, the fingerprint is recomputed and compared with the blockchain record. If the evidence changes, the fingerprints no longer match and tampering is detected.
+
+> The biometric similarity score represents similarity between face embeddings; it is not a probability of identity.
+
+---
+
+## Limitations
+
+- Google Lens can only discover public/indexed content.
+- A facial match does not prove social-media account ownership.
+- Face-matching thresholds are not production-grade biometric calibration.
+- Ethereum Sepolia is a testnet.
+- The underlying social-media content can change after verification.
+- Reverse-image search requires temporarily making the search image accessible to the external search service.
+
+---
+
+## Testing
+
+Backend:
+
+```bash
+cd backend
+python -m pytest tests/ -v
+```
+
+Smart contracts:
+
+```bash
+cd contracts
+npx hardhat test
+```
+
+---
+
+## Project Structure
+
+```text
+verascan/
+├── backend/       # FastAPI + face recognition pipeline
+├── frontend/      # Next.js web application
+├── contracts/     # Ethereum smart contract
+├── README.md
+├── prd.md
+├── implementation_plan.md
+└── .env.example
+```
+
+---
+
+## Hacker House Goa 2026
+
+Built for **Hacker House Goa 2026 — Task 3: Face Identification & Blockchain Verification**
+
+**Face Detection → Face Encoding → Genuine Web Search → Independent Verification → SHA-256 Fingerprinting → Blockchain Anchoring → Re-verification**

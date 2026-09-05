@@ -149,7 +149,7 @@ export default function Home() {
       setEvidenceFingerprint(data.evidence_fingerprint || null);
       if ((data.results || []).length > 0) {
         setTimeout(() => {
-          const el = document.getElementById('biometric-match');
+          const el = document.getElementById('matching-content');
           if (!el) return;
           const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
           el.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
@@ -184,6 +184,12 @@ export default function Home() {
       mark({ verify: 'complete' });
       sessionStorage.setItem('verascan_proof', JSON.stringify(p));
       appendProof({ recordId, dataHash: fp, txHash: stored.txHash, blockNumber: stored.blockNumber, sourceUrl: result.url });
+      setTimeout(() => {
+        const el = document.getElementById('onchain-proof');
+        if (!el) return;
+        const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        el.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
+      }, 250);
     } catch (e) {
       mark({ verify: 'error' });
       setError(e.message);
@@ -282,6 +288,7 @@ export default function Home() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.22 }}
           className="card glass"
+          id="matching-content"
         >
           <div className="card-head">
             <div>

@@ -41,6 +41,9 @@ temp/
 # Face recognition models (lazy-downloaded, see backend/services/face_recognition.py)
 backend/models/*.onnx
 
+# CLI receipts (local verification artifacts; may embed evidence image bytes)
+backend/receipts/*.json
+
 # Logs
 *.log
 npm-debug.log*

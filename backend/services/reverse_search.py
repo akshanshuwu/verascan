@@ -23,22 +23,62 @@ SOCIAL_DOMAINS = [
 ]
 
 
+def _url_serves_image(url: str) -> bool:
+    """Check the public URL actually serves image bytes (Lens gets HTML otherwise -> 0 matches)."""
+    try:
+        res = requests.get(
+            url,
+            timeout=15,
+            stream=True,
+            headers={"User-Agent": "VeraScan/1.0"},
+        )
+        if res.status_code != 200:
+            return False
+        ctype = (res.headers.get("Content-Type") or "").lower()
+        if "image" not in ctype:
+            return False
+        # Peek at first chunk: must be non-empty (JPEG magic ffd8ff, PNG, WebP, ...).
+        for chunk in res.iter_content(1024):
+            return bool(chunk)
+        return False
+    except requests.RequestException:
+        return False
+
+
 def _upload_to_catbox(image_bytes: bytes) -> str:
     """Upload image bytes to Catbox.moe, return public URL. Raises RuntimeError on failure."""
+    last_err = "unknown"
+    for _ in range(3):
+        try:
+            files = {"fileToUpload": ("face.jpg", image_bytes, "image/jpeg")}
+            data = {"reqtype": "fileupload"}
+            res = requests.post("https://catbox.moe/user/api.php", files=files, data=data, timeout=30)
+            url = res.text.strip()
+            if res.status_code == 200 and url.startswith("https://"):
+                return url
+            last_err = f"{res.status_code} {url[:200]}"
+        except requests.RequestException as e:
+            last_err = str(e)[:160]
+    raise RuntimeError(f"Catbox upload failed: {last_err}")
+
+
+def _upload_to_uguu(image_bytes: bytes) -> str:
+    """Fallback: upload to uguu.se, return direct image URL. Raises RuntimeError on failure."""
     try:
-        files = {"fileToUpload": ("face.jpg", image_bytes, "image/jpeg")}
-        data = {"reqtype": "fileupload"}
-        res = requests.post("https://catbox.moe/user/api.php", files=files, data=data, timeout=30)
-        url = res.text.strip()
+        files = {"files[]": ("face.jpg", image_bytes, "image/jpeg")}
+        res = requests.post("https://uguu.se/upload.php", files=files, timeout=30)
+        payload = res.json()
+        files_out = payload.get("files") or []
+        url = files_out[0].get("url", "") if files_out else ""
         if res.status_code == 200 and url.startswith("https://"):
             return url
-        raise RuntimeError(f"Catbox upload failed: {res.status_code} {url[:200]}")
-    except requests.RequestException as e:
+        raise RuntimeError(f"uguu upload failed: {res.status_code} {str(payload)[:200]}")
+    except (requests.RequestException, ValueError) as e:
         raise RuntimeError(f"Image hosting upload failed: {e}")
 
 
 def _upload_to_tmpfiles(image_bytes: bytes) -> str:
-    """Fallback: upload to tmpfiles.org, return direct download URL."""
+    """Last-resort fallback: upload to tmpfiles.org, return direct download URL."""
     try:
         files = {"file": ("face.jpg", image_bytes, "image/jpeg")}
         res = requests.post("https://tmpfiles.org/api/v1/upload", files=files, timeout=30)
@@ -48,16 +88,33 @@ def _upload_to_tmpfiles(image_bytes: bytes) -> str:
             # Convert https://tmpfiles.org/123/abc.jpg -> https://tmpfiles.org/dl/123/abc.jpg
             return url.replace("tmpfiles.org/", "tmpfiles.org/dl/")
         raise RuntimeError(f"tmpfiles upload failed: {payload}")
-    except requests.RequestException as e:
+    except (requests.RequestException, ValueError) as e:
         raise RuntimeError(f"Image hosting upload failed: {e}")
 
 
 def _publish_image(image_bytes: bytes) -> str:
-    """Publish face crop to a public URL SerpAPI can fetch. Tries Catbox, falls back to tmpfiles."""
-    try:
-        return _upload_to_catbox(image_bytes)
-    except RuntimeError:
-        return _upload_to_tmpfiles(image_bytes)
+    """Publish face crop to a public URL SerpAPI can fetch.
+
+    Tries Catbox, then uguu.se, then tmpfiles. Each candidate URL is verified
+    to actually serve image bytes first: an HTML interstitial (e.g. tmpfiles
+    /dl/ links returning text/html) makes Lens return Success with 0 matches,
+    which the UI would misreport as "no matching content".
+    """
+    errors = []
+    for uploader in (_upload_to_catbox, _upload_to_uguu, _upload_to_tmpfiles):
+        try:
+            url = uploader(image_bytes)
+        except RuntimeError as e:
+            errors.append(str(e)[:120])
+            continue
+        if _url_serves_image(url):
+            return url
+        errors.append(f"{uploader.__name__}: URL did not serve image bytes")
+    raise RuntimeError(
+        "Could not publish image for search (all hosts failed: "
+        + "; ".join(errors[:3])
+        + "). Try again in a minute."
+    )
 
 
 def search_face(image_base64: str) -> dict:
