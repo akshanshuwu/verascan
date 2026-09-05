@@ -2,9 +2,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
+import os
+
 from routers import face, search, hash
 
 load_dotenv()
+
+
+def _cors_origins() -> list:
+    """Allowed frontend origins. Comma-separated CORS_ORIGINS wins,
+    else FRONTEND_URL, else local dev defaults (no code change to deploy)."""
+    raw = os.getenv("CORS_ORIGINS") or os.getenv("FRONTEND_URL") or ""
+    origins = [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
+    if not origins:
+        origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    return origins
 
 app = FastAPI(
     title="VeraScan API",
@@ -12,10 +24,12 @@ app = FastAPI(
     version="1.0.0",
 )
 
+_CORS_ORIGINS = _cors_origins()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
+    allow_origins=_CORS_ORIGINS,
+    allow_credentials="*" not in _CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
