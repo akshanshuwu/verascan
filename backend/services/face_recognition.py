@@ -17,6 +17,7 @@ Embeddings never leave the server and are never sent to the frontend.
 
 import io
 import os
+import threading
 import urllib.request
 
 import cv2
@@ -49,6 +50,13 @@ DEFAULT_THRESHOLD = 0.50
 _detector = None
 _recognizer = None
 _threshold = None
+
+# YuNet/SFace instances are shared singletons and not thread-safe:
+# setInputSize() mutates shared state, so concurrent detect() calls with
+# different image sizes race and crash in the DNN forward pass. Parallel
+# candidate verification must serialize only the model calls; image
+# decoding and downloads stay parallel.
+_MODEL_LOCK = threading.Lock()
 
 
 def _ensure_model(filename: str, url: str) -> str:
@@ -106,8 +114,9 @@ def detect_faces_for_recognition(image_bytes: bytes) -> list:
     detector, _ = get_models()
     img = _to_bgr(image_bytes)
     h, w = img.shape[:2]
-    detector.setInputSize((w, h))
-    _, faces = detector.detect(img)
+    with _MODEL_LOCK:
+        detector.setInputSize((w, h))
+        _, faces = detector.detect(img)
     if faces is None or len(faces) == 0:
         return []
     # Largest face first; full YuNet rows (box + 5 landmarks + score) preserved.
@@ -119,13 +128,14 @@ def embed_face(image_bytes: bytes) -> np.ndarray:
     detector, recognizer = get_models()
     img = _to_bgr(image_bytes)
     h, w = img.shape[:2]
-    detector.setInputSize((w, h))
-    _, faces = detector.detect(img)
-    if faces is None or len(faces) == 0:
-        raise ValueError("No face detected for embedding.")
-    biggest = max(faces, key=lambda f: f[2] * f[3])
-    aligned = recognizer.alignCrop(img, biggest)
-    feat = recognizer.feature(aligned).flatten().astype(np.float64)
+    with _MODEL_LOCK:
+        detector.setInputSize((w, h))
+        _, faces = detector.detect(img)
+        if faces is None or len(faces) == 0:
+            raise ValueError("No face detected for embedding.")
+        biggest = max(faces, key=lambda f: f[2] * f[3])
+        aligned = recognizer.alignCrop(img, biggest)
+        feat = recognizer.feature(aligned).flatten().astype(np.float64)
     norm = float(np.linalg.norm(feat))
     if norm == 0:
         raise ValueError("Embedding has zero norm.")
@@ -153,21 +163,22 @@ def verify_candidate(query_embedding: np.ndarray, candidate_bytes: bytes) -> dic
     h, w = img.shape[:2]
     if min(h, w) < 20:
         return {"faces_detected": 0, "similarities": [], "best_similarity": None}
-    detector.setInputSize((w, h))
-    _, faces = detector.detect(img)
-    if faces is None or len(faces) == 0:
-        return {"faces_detected": 0, "similarities": [], "best_similarity": None}
-    sims = []
-    for face in faces:
-        try:
-            aligned = recognizer.alignCrop(img, face)
-            feat = recognizer.feature(aligned).flatten().astype(np.float64)
-            norm = float(np.linalg.norm(feat))
-            if norm == 0:
+    with _MODEL_LOCK:
+        detector.setInputSize((w, h))
+        _, faces = detector.detect(img)
+        if faces is None or len(faces) == 0:
+            return {"faces_detected": 0, "similarities": [], "best_similarity": None}
+        sims = []
+        for face in faces:
+            try:
+                aligned = recognizer.alignCrop(img, face)
+                feat = recognizer.feature(aligned).flatten().astype(np.float64)
+                norm = float(np.linalg.norm(feat))
+                if norm == 0:
+                    continue
+                sims.append(round(cosine_similarity(query_embedding, feat / norm), 4))
+            except Exception:
                 continue
-            sims.append(round(cosine_similarity(query_embedding, feat / norm), 4))
-        except Exception:
-            continue
     if not sims:
         return {"faces_detected": len(faces), "similarities": [], "best_similarity": None}
     return {

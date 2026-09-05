@@ -1,5 +1,7 @@
 import base64
 import os
+from concurrent.futures import ThreadPoolExecutor
+
 import requests
 from serpapi import GoogleSearch
 
@@ -13,7 +15,7 @@ from services.hasher import fingerprint_evidence
 # Candidate image download policy (spec section 6).
 CANDIDATE_TIMEOUT_S = 8
 CANDIDATE_MAX_BYTES = 5 * 1024 * 1024
-MAX_CANDIDATES = 8
+MAX_CANDIDATES = 5
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
 
 SOCIAL_DOMAINS = [
@@ -199,10 +201,13 @@ def search_face(image_base64: str) -> dict:
         seen_urls.add(link)
         pooled.append((_to_candidate(match, exact=False), False))
 
-    # Verify each candidate independently (bounded pool, failures never fatal).
-    verified = []
-    for cand, _ in pooled[:MAX_CANDIDATES]:
-        verified.append(_verify_one(cand, query_embedding, threshold))
+    # Verify each candidate independently in parallel (bounded pool, failures never fatal).
+    # executor.map preserves input order, so downstream ranking is identical to serial.
+    pool = pooled[:MAX_CANDIDATES]
+    with ThreadPoolExecutor(max_workers=MAX_CANDIDATES) as ex:
+        verified = list(
+            ex.map(lambda c: _verify_one(c[0], query_embedding, threshold), pool)
+        )
 
     # Rank: verified matches first by similarity desc, then the rest
     # (scored above unscored, nulls last). Original Lens order breaks ties.
