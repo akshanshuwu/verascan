@@ -17,6 +17,7 @@ Embeddings never leave the server and are never sent to the frontend.
 
 import io
 import os
+import tempfile
 import threading
 import urllib.request
 
@@ -24,7 +25,17 @@ import cv2
 import numpy as np
 from PIL import Image
 
-MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+
+def _models_dir() -> str:
+    # Vercel serverless filesystem is read-only except /tmp: reuse the
+    # lazy-download + checksum flow, but cache the .onnx files in /tmp
+    # when deployed (Vercel sets VERCEL=1). Local behavior is unchanged.
+    if os.getenv("VERCEL"):
+        return os.path.join(tempfile.gettempdir(), "verascan_models")
+    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+
+
+MODELS_DIR = _models_dir()
 
 YUNET_FILENAME = "face_detection_yunet_2023mar.onnx"
 SFACE_FILENAME = "face_recognition_sface_2021dec.onnx"

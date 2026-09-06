@@ -145,6 +145,19 @@ Start the backend:
 uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
+### Backend on Vercel (optional)
+
+Deploy `backend/` as its own Vercel project — no code changes needed:
+
+- **Root Directory:** `backend` (so Vercel loads `main.py:app` directly)
+- **Backend env vars:** `SERPAPI_KEY`, `FACE_MATCH_THRESHOLD`,
+  `ALCHEMY_RPC_URL`, `CONTRACT_ADDRESS`, `DEPLOYER_PRIVATE_KEY`,
+  `CORS_ORIGINS=https://<your-frontend-url>`
+- **Frontend env var:** `NEXT_PUBLIC_API_URL=https://<your-backend-url>`
+- Models lazy-download into `/tmp` automatically when `VERCEL=1` is set
+  (checksums unchanged); the CLI (`python main.py scan/verify`) is local-only
+  and unaffected.
+
 ### 3. Frontend
 
 In a new terminal:
