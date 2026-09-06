@@ -8,7 +8,7 @@ VeraScan is a complete web application that detects and encodes a face, discover
 
 **No installation is required. The complete project is available as a live website.**
 
-**[Live Demo](YOUR_LIVE_WEBSITE_URL)**
+**[Live Demo](https://verascan-ilzl.vercel.app/)**
 
 From the website you can:
 

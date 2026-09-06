@@ -162,6 +162,7 @@ a:hover { color: var(--accent-hover); }
 .fp-crop-card img { width: 100%; display: block; aspect-ratio: 1 / 1; object-fit: cover; background: #eee; }
 .fp-conf { padding: 12px 14px 14px; }
 .fp-conf-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.fp-conf-row > .mono { white-space: nowrap; flex: none; }
 .conf-bar { height: 6px; background: #EDE9DF; border-radius: 999px; margin-top: 8px; overflow: hidden; }
 .conf-bar span { display: block; height: 100%; background: var(--success); border-radius: 999px; transition: width 300ms ease; }
 .fp-note { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
