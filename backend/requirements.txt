@@ -2,7 +2,7 @@ fastapi
 uvicorn[standard]
 python-multipart
 Pillow
-opencv-contrib-python
+opencv-contrib-python-headless
 google-search-results
 python-dotenv
 requests
